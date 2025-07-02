@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cetak Kartu Peserta Online</title>
+    <!-- Memuat Tailwind CSS untuk styling yang responsif dan modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mengatur font Inter untuk tampilan yang bersih */
+        body {
+            font-family: "Inter", sans-serif;
+        }
+        /* Styling untuk mode cetak */
+        @media print {
+            body * {
+                visibility: hidden; /* Sembunyikan semua elemen kecuali yang akan dicetak */
+            }
+            .printable-area, .printable-area * {
+                visibility: visible; /* Tampilkan area kartu peserta */
+            }
+            .printable-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none; /* Hapus bayangan saat dicetak */
+                background-color: white;
+                border: none;
+                padding: 0;
+            }
+            .no-print {
+                display: none; /* Sembunyikan tombol cetak saat mencetak */
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="container bg-white p-8 rounded-lg shadow-lg w-full max-w-lg relative">
+
+        <!-- Area Pencarian Siswa Umum (Selalu Terlihat) -->
+        <div id="publicStudentSearchArea" class="mb-8">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Cetak Kartu Peserta</h1>
+
+            <!-- Grup input untuk Nomor Registrasi -->
+            <div class="mb-6 no-print">
+                <label for="regNumber" class="block text-gray-700 text-sm font-semibold mb-2">Masukkan Nomor Registrasi:</label>
+                <input type="text" id="regNumber" placeholder="Contoh: 001"
+                       class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+            </div>
+
+            <!-- Tombol Cari Data -->
+            <button onclick="searchStudent()"
+                    class="no-print w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                Cari Data
+            </button>
+
+            <!-- Pesan kesalahan jika data tidak ditemukan -->
+            <div id="errorMessage" class="error-message text-red-600 text-center mt-4 hidden">
+                Nomor Registrasi tidak ditemukan. Mohon periksa kembali.
+            </div>
+
+            <!-- Area tampilan data siswa (kartu peserta) -->
+            <div id="studentData" class="student-card border border-gray-200 p-6 mt-8 rounded-lg bg-gray-50 hidden printable-area">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Data Peserta</h2>
+                <div class="space-y-3">
+                    <p class="text-gray-700"><strong>Nomor Registrasi:</strong> <span id="displayRegNumber" class="font-medium text-gray-900"></span></p>
+                    <p class="text-gray-700"><strong>Nama Peserta:</strong> <span id="displayName" class="font-medium text-gray-900"></span></p>
+                    <p class="text-gray-700"><strong>Nama Orang Tua:</strong> <span id="displayParentName" class="font-medium text-gray-900"></span></p>
+                </div>
+                <!-- Tombol Cetak Kartu -->
+                <button onclick="window.print()"
+                        class="no-print mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                    Cetak Kartu
+                </button>
+            </div>
+        </div>
+
+        <!-- Tombol untuk Mengakses Login Admin (Selalu Terlihat) -->
+        <button id="toggleAdminBtn" onclick="toggleAdminLoginArea()"
+                class="no-print w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out mt-4">
+            Login Admin
+        </button>
+
+        <!-- Area Login Admin (Tersembunyi secara default, muncul saat tombol di klik) -->
+        <div id="adminLoginArea" class="no-print hidden mt-8 p-6 bg-white rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Login Admin</h2>
+            <div class="mb-4">
+                <label for="adminUsername" class="block text-gray-700 text-sm font-semibold mb-2">Username:</label>
+                <input type="text" id="adminUsername" placeholder="Masukkan username"
+                       class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+            </div>
+            <div class="mb-6">
+                <label for="adminPassword" class="block text-gray-700 text-sm font-semibold mb-2">Password:</label>
+                <input type="password" id="adminPassword" placeholder="Masukkan password"
+                       class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+            </div>
+            <button onclick="loginAdmin()"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                Login
+            </button>
+            <div id="loginErrorMessage" class="error-message text-red-600 text-center mt-4 hidden">
+                Username atau password salah.
+            </div>
+        </div>
+
+        <!-- Area Fungsionalitas Admin (Tersembunyi secara default, muncul setelah login berhasil) -->
+        <div id="adminFunctionArea" class="no-print hidden mt-8 p-6 bg-white rounded-lg shadow-lg relative">
+            <button onclick="logoutAdmin()"
+                    class="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white text-sm font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out">
+                Logout Admin
+            </button>
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Panel Admin</h1>
+
+            <!-- Tab Navigation untuk Admin -->
+            <div class="flex justify-center mb-6">
+                <button id="addTabBtn" onclick="showAdminTab('add')" class="px-4 py-2 rounded-t-lg bg-blue-500 text-white font-semibold mr-2">Tambah Peserta</button>
+                <button id="exportTabBtn" onclick="showAdminTab('export')" class="px-4 py-2 rounded-t-lg bg-gray-300 text-gray-700 font-semibold">Export Data</button>
+            </div>
+
+            <!-- Konten Tab Admin -->
+            <div id="addDataArea" class="admin-tab-content p-6 border border-gray-200 rounded-lg bg-gray-50">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Tambah Data Peserta Baru</h2>
+                <div class="mb-4">
+                    <label for="newRegNumber" class="block text-gray-700 text-sm font-semibold mb-2">Nomor Registrasi:</label>
+                    <input type="text" id="newRegNumber" placeholder="Contoh: 156"
+                           class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                </div>
+                <div class="mb-4">
+                    <label for="newNamaPeserta" class="block text-gray-700 text-sm font-semibold mb-2">Nama Peserta:</label>
+                    <input type="text" id="newNamaPeserta" placeholder="Masukkan nama peserta"
+                           class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                </div>
+                <div class="mb-4">
+                    <label for="newNisn" class="block text-gray-700 text-sm font-semibold mb-2">NISN:</label>
+                    <input type="text" id="newNisn" placeholder="Masukkan NISN (opsional)"
+                           class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                </div>
+                <div class="mb-6">
+                    <label for="newNamaOrangTua" class="block text-gray-700 text-sm font-semibold mb-2">Nama Orang Tua:</label>
+                    <input type="text" id="newNamaOrangTua" placeholder="Masukkan nama orang tua"
+                           class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out">
+                </div>
+                <button onclick="addStudent()"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                    Tambah Data
+                </button>
+                <div id="addStudentMessage" class="text-center mt-4 hidden"></div>
+            </div>
+
+            <div id="exportDataArea" class="admin-tab-content hidden p-6 border border-gray-200 rounded-lg bg-gray-50">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Export Data Peserta</h2>
+                <p class="text-gray-700 mb-6 text-center">Klik tombol di bawah untuk mengunduh semua data peserta dalam format CSV.</p>
+                <button onclick="exportStudentsToCSV()"
+                        class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                    Export ke CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data peserta yang Anda berikan
+        const students = [
+            { "no_registrasi": "001", "nama_peserta": "NAILAH NURIN NAJWA", "nisn": "3121351375", "nama_orang_tua": "SUGIYANTO" },
+            { "no_registrasi": "002", "nama_peserta": "ADITYA FIRMANSYAH", "nisn": "3125041429", "nama_orang_tua": "LUKMAN" },
+            { "no_registrasi": "003", "nama_peserta": "SASKIA IJATUNNISA", "nisn": "3135985096", "nama_orang_tua": "OJI MADROJI" },
+            { "no_registrasi": "004", "nama_peserta": "ZAINAL MUTTAQIEN", "nisn": "O138965157", "nama_orang_tua": "MURWANTO PRIYADI" },
+            { "no_registrasi": "005", "nama_peserta": "HAFEEZA ALEA NADHIR", "nisn": "3131902718", "nama_orang_tua": "YUDI SISWANTO" },
+            { "no_registrasi": "006", "nama_peserta": "NADHIRA SAFA SALSABILA", "nisn": "3139297584", "nama_orang_tua": "MOHAMAD SOLEHUDIN" },
+            { "no_registrasi": "007", "nama_peserta": "NAUFAL ABID AQILAH", "nisn": "3128490170", "nama_orang_tua": "LUTHFI SUHAJI" },
+            { "no_registrasi": "008", "nama_peserta": "MUHAMMAD FAHRI HAMZAH", "nisn": "-", "nama_orang_tua": "MUSRIANTO" },
+            { "no_registrasi": "009", "nama_peserta": "RAMA RAMDHANI", "nisn": "3124682397", "nama_orang_tua": "GIYARSO" },
+            { "no_registrasi": "010", "nama_peserta": "YASMIN SALSABILA FITRI", "nisn": "3123980482", "nama_orang_tua": "PRINTIS SUNARTO" },
+            { "no_registrasi": "011", "nama_peserta": "KHANSA AZALIA AGATHA", "nisn": "0121968834", "nama_orang_tua": "ARIF RISDYANTO" },
+            { "no_registrasi": "012", "nama_peserta": "SYAHRUL MUGNI RAMADHAN", "nisn": "0129743595", "nama_orang_tua": "AGUS MUGNI" },
+            { "no_registrasi": "013", "nama_peserta": "SHENA AYU KELANA", "nisn": "0133087873", "nama_orang_tua": "RESTU PANDU WARASTHO PUTRO" },
+            { "no_registrasi": "014", "nama_peserta": "LIDYA ALYA TRIYANAH", "nisn": "0127072691", "nama_orang_tua": "MUHAMMAD NASTAIN" },
+            { "no_registrasi": "015", "nama_peserta": "WIJAYA SAPUTRA HAMBALI", "nisn": "3126260997", "nama_orang_tua": "IMAM HAMBLI" },
+            { "no_registrasi": "018", "nama_peserta": "MUHAMAD HUMAM PRABOWO", "nisn": "3126077732", "nama_orang_tua": "MULYONO" },
+            { "no_registrasi": "019", "nama_peserta": "RAFI ISMAIL", "nisn": "3134397029", "nama_orang_tua": "ISWANDI" },
+            { "no_registrasi": "020", "nama_peserta": "MUHAMMAD FAQIH BAHRUL ULUM", "nisn": "3125053863", "nama_orang_tua": "SUWANDA" },
+            { "no_registrasi": "021", "nama_peserta": "FARIS MAULANA", "nisn": "-", "nama_orang_tua": "AGUS SUPARNO" },
+            { "no_registrasi": "024", "nama_peserta": "RAISYA PUTRI ANDIRA", "nisn": "3130454607", "nama_orang_tua": "PRIYADI" },
+            { "no_registrasi": "025", "nama_peserta": "FATIMATUZAHRA", "nisn": "3134398041", "nama_orang_tua": "SAEFUDIN ZUHRI" },
+            { "no_registrasi": "027", "nama_peserta": "MUHAMAD ADITYA", "nisn": "3136588654", "nama_orang_tua": "SUHENDAR" },
+            { "no_registrasi": "028", "nama_peserta": "ATTAR TAUFIQURRAHMAN", "nisn": "0137256636", "nama_orang_tua": "ERWAN SUSANTO" },
+            { "no_registrasi": "030", "nama_peserta": "ANUGERAH PUTRA RAMADHAN", "nisn": "3138525953", "nama_orang_tua": "PARYANTO" },
+            { "no_registrasi": "032", "nama_peserta": "NUR ROHMAH AZIZAH", "nisn": "-", "nama_orang_tua": "SUYITNO" },
+            { "no_registrasi": "033", "nama_peserta": "NAYRA PUTRI ADINANTI", "nisn": "0139344224", "nama_orang_tua": "RAHMAT SALEH" },
+            { "no_registrasi": "035", "nama_peserta": "MUHAMMAD EGI SATRIO", "nisn": "-", "nama_orang_tua": "SUTARNO" },
+            { "no_registrasi": "036", "nama_peserta": "ADILA ARISTA", "nisn": "0134492525", "nama_orang_tua": "EKO SURYANTO" },
+            { "no_registrasi": "038", "nama_peserta": "BAGAS ADRIAN", "nisn": "0122840278", "nama_orang_tua": "HASAN BASRI" },
+            { "no_registrasi": "039", "nama_peserta": "NAURA ZHAFIRA SUWARTONO", "nisn": "-", "nama_orang_tua": "SUWARTONO" },
+            { "no_registrasi": "040", "nama_peserta": "MUHAMMAD RAIHAN IZTIBRA", "nisn": "3125916789", "nama_orang_tua": "MARGONO ( ALMRH. )" },
+            { "no_registrasi": "041", "nama_peserta": "DAVID ILYAS PRATAMA", "nisn": "0131141882", "nama_orang_tua": "SEFRIAN IRAWAN" },
+            { "no_registrasi": "043", "nama_peserta": "EVAN RIZQI PAMUJI", "nisn": "3134482908", "nama_orang_tua": "SULIS TIYANTA" },
+            { "no_registrasi": "046", "nama_peserta": "MUHAMAD ARYASUTA", "nisn": "3123826831", "nama_orang_tua": "SUTEJO" },
+            { "no_registrasi": "047", "nama_peserta": "MUHAMMAD AZAM ALHIKAM", "nisn": "-", "nama_orang_tua": "AHMAD JUPRIYANTO" },
+            { "no_registrasi": "049", "nama_peserta": "WILDAN AQIEL DIELLA", "nisn": "3122934863", "nama_orang_tua": "HARDIYONO" },
+            { "no_registrasi": "050", "nama_peserta": "NIZAM ALIFIAN GUMELAR", "nisn": "3121462011", "nama_orang_tua": "GUGUN GUMELAR" },
+            { "no_registrasi": "051", "nama_peserta": "ACHITA RACHMA PUTRI", "nisn": "1920.1.001/-", "nama_orang_tua": "RAHMAT RIFAI" },
+            { "no_registrasi": "053", "nama_peserta": "ALFIN YUSUF", "nisn": "3127705286", "nama_orang_tua": "WARIDIN" },
+            { "no_registrasi": "056", "nama_peserta": "ERLAND HAFIZ NOOR ROMADONA", "nisn": "-", "nama_orang_tua": "RENDY ROMADONA" },
+            { "no_registrasi": "059", "nama_peserta": "RASYA NUR AMALIA", "nisn": "-", "nama_orang_tua": "MULYOSO" },
+            { "no_registrasi": "060", "nama_peserta": "M.RIZKI SEPTIAN", "nisn": "-", "nama_orang_tua": "SAPRIUDIN" },
+            { "no_registrasi": "061", "nama_peserta": "MOHAMMAD RIZKY ADITYA", "nisn": "-", "nama_orang_tua": "TARSONO" },
+            { "no_registrasi": "064", "nama_peserta": "AQILLA AZ ZAHRA", "nisn": "0131099249", "nama_orang_tua": "ISNARDI" },
+            { "no_registrasi": "066", "nama_peserta": "ALIF KEMAS SUHARTO", "nisn": "0136844200", "nama_orang_tua": "IRPAN SUHARTO" },
+            { "no_registrasi": "067", "nama_peserta": "RIZQIANSYAH MUHHAMMAD SISWANTO", "nisn": "0121243354", "nama_orang_tua": "BUDI SISWANTO" },
+            { "no_registrasi": "073", "nama_peserta": "ARFA PAMBUDI MUCHTAR", "nisn": "3122814070", "nama_orang_tua": "NADZAMUDIN MUKHTAR" },
+            { "no_registrasi": "076", "nama_peserta": "ACHMAD BAKHTIAR MAULANA", "nisn": "3132900092", "nama_orang_tua": "MAULANA QCHYADI" },
+            { "no_registrasi": "077", "nama_peserta": "AIRA SYAHRANI", "nisn": "3133123071", "nama_orang_tua": "NAMAR" },
+            { "no_registrasi": "078", "nama_peserta": "MUHAMAD FAIS AUFAR AL FIKRAH", "nisn": "3122721491", "nama_orang_tua": "SAPRUDI" },
+            { "no_registrasi": "079", "nama_peserta": "ALISYA SAFITRI", "nisn": "0127350548", "nama_orang_tua": "SAFRUDIN" },
+            { "no_registrasi": "080", "nama_peserta": "ANDRUW ARBYAN KURNIAWAN", "nisn": "3123533412", "nama_orang_tua": "AMIN KURNIAWAN" },
+            { "no_registrasi": "081", "nama_peserta": "SYAKIR KHAIDAR ALI", "nisn": "3139181555", "nama_orang_tua": "NADI KUSNADI" },
+            { "no_registrasi": "084", "nama_peserta": "REIKHA BILAL AL RASYID", "nisn": "3121359735", "nama_orang_tua": "AHMAD MAULANA" },
+            { "no_registrasi": "086", "nama_peserta": "ZULFA NURUL RAMADHANI", "nisn": "3123925155", "nama_orang_tua": "SURAJI" },
+            { "no_registrasi": "087", "nama_peserta": "ROFI ABDAN CHOIRI", "nisn": "0139154368", "nama_orang_tua": "ABDUL CHOLIK" },
+            { "no_registrasi": "088", "nama_peserta": "MOSA HARTAMA", "nisn": "3122735584", "nama_orang_tua": "SAHRUL TOHIRIN" },
+            { "no_registrasi": "089", "nama_peserta": "MUHAMMAD FADHIL NOVINDRA", "nisn": "3133352531", "nama_orang_tua": "CANDRA" },
+            { "no_registrasi": "091", "nama_peserta": "FAIZAL HAFI", "nisn": "3129805659", "nama_orang_tua": "RUSYADI" },
+            { "no_registrasi": "094", "nama_peserta": "MUHAMAD RIZKI", "nisn": "3138313236", "nama_orang_tua": "MULYADI BIN ENDUNG" },
+            { "no_registrasi": "095", "nama_peserta": "FADHIL ZHAFRAN WIJAYA", "nisn": "3136078980", "nama_orang_tua": "MOHAMMAD ROKHAN" },
+            { "no_registrasi": "097", "nama_peserta": "ASSYARI AZZAHRA BASKORO", "nisn": "-", "nama_orang_tua": "RINO BASKORO, S.M" },
+            { "no_registrasi": "099", "nama_peserta": "MUHAMMAD FARHAN", "nisn": "3136460366", "nama_orang_tua": "RACHMAT JOHAN" },
+            { "no_registrasi": "101", "nama_peserta": "RAVKA PADLI ARIZKI", "nisn": "-", "nama_orang_tua": "BENI BASUKI" },
+            { "no_registrasi": "103", "nama_peserta": "AQILA IZZATUNNISA", "nisn": "3132450464", "nama_orang_tua": "ZAINAL ABIDIN" },
+            { "no_registrasi": "105", "nama_peserta": "GILANG FABREGAS", "nisn": "3123605253", "nama_orang_tua": "ASEP SAPRUDIN" },
+            { "no_registrasi": "106", "nama_peserta": "MUHAMMAD NAZRIL ALAMSYAH UMAR", "nisn": "0134795129", "nama_orang_tua": "ARI WIBOWO" },
+            { "no_registrasi": "109", "nama_peserta": "AISYA AZ-ZAHRA PUTRI", "nisn": "0133398349", "nama_orang_tua": "BPK. SLAMET" },
+            { "no_registrasi": "110", "nama_peserta": "ZAHRA ALMAIRA", "nisn": "3138138306", "nama_orang_tua": "KOMARUDIN" },
+            { "no_registrasi": "112", "nama_peserta": "NADIA SALSABILA BAHRI", "nisn": "3123449048", "nama_orang_tua": "SYAIFUL BACHRI" },
+            { "no_registrasi": "113", "nama_peserta": "MUHAMAD KHAIRUL AZAM", "nisn": "3131910484", "nama_orang_tua": "RUSTAMI" },
+            { "no_registrasi": "114", "nama_peserta": "ARYA FITRAH MAULANA", "nisn": "3125861696", "nama_orang_tua": "SAMRONI" },
+            { "no_registrasi": "116", "nama_peserta": "BILQIS ALEA YASMIN", "nisn": "3128383258", "nama_orang_tua": "ALI SUSANTO" },
+            { "no_registrasi": "117", "nama_peserta": "ALYA WULANSARI BAHRI", "nisn": "3128841654", "nama_orang_tua": "ASEP SYAIFUL BAHRI" },
+            { "no_registrasi": "119", "nama_peserta": "CIKA ANDARA PUTRI", "nisn": "3123105748", "nama_orang_tua": "ROSIKIN" },
+            { "no_registrasi": "120", "nama_peserta": "NAIRA AQILA ZAHRATUNNISA", "nisn": "3123404759", "nama_orang_tua": "ATIM NURIMAN" },
+            { "no_registrasi": "121", "nama_peserta": "ALISHA FATIN KHAERUNISA", "nisn": "0124171092", "nama_orang_tua": "IRAWAN" },
+            { "no_registrasi": "122", "nama_peserta": "MUHAMMAD KHOIRUL FARHAN", "nisn": "312391118", "nama_orang_tua": "AHMAD NUR KHOLIS" },
+            { "no_registrasi": "124", "nama_peserta": "ANANDA DARA OKTAVIA", "nisn": "3121450296", "nama_orang_tua": "ARIS CAHYONO" },
+            { "no_registrasi": "125", "nama_peserta": "MUHAMMAD JAISY EL FA'IQ", "nisn": "3123139903", "nama_orang_tua": "SUTRASMAN" },
+            { "no_registrasi": "126", "nama_peserta": "IDZNI IMTIYAZ MAULANA", "nisn": "3136305233", "nama_orang_tua": "YUSUF MAULANA" },
+            { "no_registrasi": "127", "nama_peserta": "DZAKIRAH TALITA SAKHI", "nisn": "-", "nama_orang_tua": "SURYANA" },
+            { "no_registrasi": "129", "nama_peserta": "MUHAMMAD AGUNG ERWANSYAH PUTRA", "nisn": "3100238481", "nama_orang_tua": "WAWAN WANDI" },
+            { "no_registrasi": "130", "nama_peserta": "NAZWA AULIA AZZAHRA", "nisn": "3133829452", "nama_orang_tua": "SUWANDI" },
+            { "no_registrasi": "131", "nama_peserta": "KAKA PUTRA SUSANTO", "nisn": "3123857193", "nama_orang_tua": "HERI SUSANTO" },
+            { "no_registrasi": "134", "nama_peserta": "SYAMIL AZZAKI ROHMANOV", "nisn": "3126217884", "nama_orang_tua": "WAGIRAN" },
+            { "no_registrasi": "135", "nama_peserta": "MUHAMMAD DZAQI MAULANA", "nisn": "122417664", "nama_orang_tua": "WAGIRAN" },
+            { "no_registrasi": "137", "nama_peserta": "NABILAH KHOIRUNNISA", "nisn": "-", "nama_orang_tua": "NANA AMSORI" },
+            { "no_registrasi": "138", "nama_peserta": "AMELIA RAHMAWATI", "nisn": "3122636121", "nama_orang_tua": "TUKIMIN" },
+            { "no_registrasi": "144", "nama_peserta": "KAYLA VIRANA ALTHAFUNNISA", "nisn": "0128467913", "nama_orang_tua": "MISRAN" },
+            { "no_registrasi": "145", "nama_peserta": "AFIKA RAMADANI PUTRI ROHMAT", "nisn": "3129708774", "nama_orang_tua": "ROHMAT" },
+            { "no_registrasi": "149", "nama_peserta": "ZHAKIRA AGUSTINA MUTIARA", "nisn": "3125149583", "nama_orang_tua": "SUKIP SETIAWAN" },
+            { "no_registrasi": "150", "nama_peserta": "AHMAD FADILLAH", "nisn": "0117636068", "nama_orang_tua": "FIRMANSYAH" },
+            { "no_registrasi": "151", "nama_peserta": "ZAHRA DWI AULIA", "nisn": "-", "nama_orang_tua": "SURONO" },
+            { "no_registrasi": "152", "nama_peserta": "AKMAL MIRZA ASYKARI", "nisn": "3128293170", "nama_orang_tua": "MANSUR" },
+            { "no_registrasi": "155", "nama_peserta": "FAJAR DANU SAPUTRO", "nisn": "3122802253", "nama_orang_tua": "YUSUF MARJUNI" },
+            /* Data tambahan yang tidak memiliki Nomor Registrasi, diberi placeholder "000" */
+            { "no_registrasi": "000", "nama_peserta": "ARYA SATYA", "nisn": "3112647310", "nama_orang_tua": "RAMDHANI" },
+            { "no_registrasi": "000", "nama_peserta": "ALKHALIFI MAULANA SUMARGO", "nisn": "0135804586", "nama_orang_tua": "WASNO SUMARGO" },
+            { "no_registrasi": "000", "nama_peserta": "NAZIL DZATUSSALAM", "nisn": "3128274924", "nama_orang_tua": "NIRWANI" },
+            { "no_registrasi": "000", "nama_peserta": "AHMAD SOFWAN AL-GOZALI", "nisn": "0129292948", "nama_orang_tua": "YUYUS MUHAMAD YUSUP" },
+            { "no_registrasi": "000", "nama_peserta": "SYAHRUL ABYANSYAH", "nisn": "3122480309", "nama_orang_tua": "BANGKIT REZA PAHLEVI" },
+            { "no_registrasi": "000", "nama_peserta": "H NOAIKAL SETIAWAN", "nisn": "3120842369", "nama_orang_tua": "BUDI SETIAWAN" },
+            { "no_registrasi": "000", "nama_peserta": "SYAQILLA PUTRI MONINTJA", "nisn": "3131221392", "nama_orang_tua": "JERRY SENDUK" },
+            { "no_registrasi": "000", "nama_peserta": "ANDI SULTAN SUBUR", "nisn": "3128617871", "nama_orang_tua": "ANDI SUBUR WIJAYA" },
+            { "no_registrasi": "000", "nama_peserta": "ZAHRAA RAMADHANI", "nisn": "0127452399", "nama_orang_tua": "KARYOTO" },
+            { "no_registrasi": "000", "nama_peserta": "KAYLA VIRANA ALTHAFUNNISA", "nisn": "0128467913", "nama_orang_tua": "MISRAN" },
+            { "no_registrasi": "000", "nama_peserta": "ABDUL AZIS", "nisn": "0131435631", "nama_orang_tua": "BUDI RIYANTO" },
+            { "no_registrasi": "000", "nama_peserta": "AFIKA ADELIANA", "nisn": "3121182319", "nama_orang_tua": "DWI KURNIANTO" },
+            { "no_registrasi": "000", "nama_peserta": "NOVAL MAULANA IBRAHIM DARMAWAN", "nisn": "3128719671", "nama_orang_tua": "DARMAWAN HADI JUANDA" },
+            { "no_registrasi": "000", "nama_peserta": "MUHAMMAD EGI SATRIO", "nisn": "-", "nama_orang_tua": "SUTARNO" },
+            { "no_registrasi": "000", "nama_peserta": "MUHAMAD ADITYA", "nisn": "3136588654", "nama_orang_tua": "SUHENDAR" },
+            { "no_registrasi": "000", "nama_peserta": "RAKKA DSEP ADITTIA", "nisn": "3122400571", "nama_orang_tua": "REPLIS SUDIRMAN" },
+            { "no_registrasi": "000", "nama_peserta": "RASYA NUR AMALIA", "nisn": "3120542657", "nama_orang_tua": "MULYOSO" }
+        ];
+
+        // Kredensial admin (hardcoded, untuk demo saja)
+        const ADMIN_USERNAME = 'admin';
+        const ADMIN_PASSWORD = 'password123';
+
+        /**
+         * Fungsi untuk memformat nomor registrasi menjadi 3 digit dengan leading zeros.
+         * @param {string} regNumber - Nomor registrasi yang akan diformat.
+         * @returns {string} Nomor registrasi yang sudah diformat.
+         */
+        function formatRegNumber(regNumber) {
+            regNumber = String(regNumber).trim();
+            // PadStart memastikan string memiliki panjang minimal 3 dengan menambahkan '0' di depan
+            return regNumber.padStart(3, '0');
+        }
+
+        /**
+         * Fungsi untuk menampilkan/menyembunyikan area login admin.
+         */
+        function toggleAdminLoginArea() {
+            const adminLoginArea = document.getElementById('adminLoginArea');
+            const adminFunctionArea = document.getElementById('adminFunctionArea');
+            const toggleAdminBtn = document.getElementById('toggleAdminBtn');
+
+            if (adminLoginArea.classList.contains('hidden')) {
+                adminLoginArea.classList.remove('hidden');
+                toggleAdminBtn.textContent = 'Sembunyikan Login Admin';
+            } else {
+                adminLoginArea.classList.add('hidden');
+                // Jika area fungsi admin sedang terlihat, sembunyikan juga saat toggle login admin
+                if (!adminFunctionArea.classList.contains('hidden')) {
+                    logoutAdmin();
+                }
+                toggleAdminBtn.textContent = 'Login Admin';
+            }
+        }
+
+        /**
+         * Fungsi untuk menangani login admin.
+         * Memeriksa kredensial yang dimasukkan dan menampilkan area fungsionalitas admin jika berhasil.
+         */
+        function loginAdmin() {
+            const usernameInput = document.getElementById('adminUsername').value.trim();
+            const passwordInput = document.getElementById('adminPassword').value.trim();
+            const loginErrorMessage = document.getElementById('loginErrorMessage');
+
+            loginErrorMessage.classList.add('hidden'); // Sembunyikan pesan error login sebelumnya
+
+            if (usernameInput === ADMIN_USERNAME && passwordInput === ADMIN_PASSWORD) {
+                document.getElementById('adminLoginArea').classList.add('hidden'); // Sembunyikan area login
+                document.getElementById('adminFunctionArea').classList.remove('hidden'); // Tampilkan area fungsionalitas admin
+                document.getElementById('toggleAdminBtn').classList.add('hidden'); // Sembunyikan tombol toggle login
+                showAdminTab('add'); // Tampilkan tab "Tambah Peserta" secara default setelah login
+            } else {
+                loginErrorMessage.classList.remove('hidden'); // Tampilkan pesan error login
+            }
+        }
+
+        /**
+         * Fungsi untuk menangani logout admin.
+         * Menyembunyikan area fungsionalitas admin dan menampilkan kembali area login admin.
+         */
+        function logoutAdmin() {
+            document.getElementById('adminFunctionArea').classList.add('hidden'); // Sembunyikan area fungsionalitas admin
+            document.getElementById('adminLoginArea').classList.remove('hidden'); // Tampilkan kembali area login
+            document.getElementById('toggleAdminBtn').classList.remove('hidden'); // Tampilkan kembali tombol toggle login
+            document.getElementById('toggleAdminBtn').textContent = 'Login Admin'; // Reset teks tombol
+            // Bersihkan input login
+            document.getElementById('adminUsername').value = '';
+            document.getElementById('adminPassword').value = '';
+            // Sembunyikan pesan tambah siswa
+            document.getElementById('addStudentMessage').classList.add('hidden');
+            // Bersihkan input tambah data
+            document.getElementById('newRegNumber').value = '';
+            document.getElementById('newNamaPeserta').value = '';
+            document.getElementById('newNisn').value = '';
+            document.getElementById('newNamaOrangTua').value = '';
+        }
+
+        /**
+         * Fungsi untuk mencari data siswa berdasarkan nomor registrasi.
+         * Mengambil input dari pengguna, memformatnya, lalu mencari di array data siswa.
+         * Menampilkan data jika ditemukan, atau pesan kesalahan jika tidak.
+         */
+        function searchStudent() {
+            const regNumberInput = document.getElementById('regNumber').value.trim(); // Ambil nilai input dan hapus spasi di awal/akhir
+            const studentDataContainer = document.getElementById('studentData'); // Kontainer untuk menampilkan data siswa
+            const errorMessage = document.getElementById('errorMessage'); // Elemen untuk pesan kesalahan
+
+            // Sembunyikan area data siswa dan pesan kesalahan sebelum pencarian baru
+            studentDataContainer.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+
+            const formattedRegNumber = formatRegNumber(regNumberInput);
+
+            // Cari siswa dalam array berdasarkan nomor registrasi yang diformat
+            const foundStudent = students.find(student => student.no_registrasi === formattedRegNumber);
+
+            // Tampilkan data jika siswa ditemukan
+            if (foundStudent) {
+                document.getElementById('displayRegNumber').textContent = foundStudent.no_registrasi;
+                document.getElementById('displayName').textContent = foundStudent.nama_peserta;
+                document.getElementById('displayParentName').textContent = foundStudent.nama_orang_tua;
+                studentDataContainer.classList.remove('hidden'); // Tampilkan kartu peserta
+            } else {
+                errorMessage.classList.remove('hidden'); // Tampilkan pesan kesalahan
+            }
+        }
+
+        /**
+         * Fungsi untuk menambah data siswa baru ke dalam array.
+         * Melakukan validasi input dan menambahkan siswa jika valid dan belum ada.
+         */
+        function addStudent() {
+            const newRegNumberInput = document.getElementById('newRegNumber').value.trim();
+            const newNamaPesertaInput = document.getElementById('newNamaPeserta').value.trim();
+            const newNisnInput = document.getElementById('newNisn').value.trim();
+            const newNamaOrangTuaInput = document.getElementById('newNamaOrangTua').value.trim();
+            const addStudentMessage = document.getElementById('addStudentMessage');
+
+            addStudentMessage.classList.add('hidden'); // Sembunyikan pesan sebelumnya
+            addStudentMessage.classList.remove('text-green-600', 'text-red-600'); // Bersihkan warna pesan
+
+            if (!newRegNumberInput || !newNamaPesertaInput || !newNamaOrangTuaInput) {
+                addStudentMessage.textContent = 'Nomor Registrasi, Nama Peserta, dan Nama Orang Tua tidak boleh kosong.';
+                addStudentMessage.classList.remove('hidden');
+                addStudentMessage.classList.add('text-red-600');
+                return;
+            }
+
+            const formattedNewRegNumber = formatRegNumber(newRegNumberInput);
+
+            // Cek apakah nomor registrasi sudah ada
+            const isDuplicate = students.some(student => student.no_registrasi === formattedNewRegNumber);
+            if (isDuplicate) {
+                addStudentMessage.textContent = `Nomor Registrasi ${formattedNewRegNumber} sudah ada.`;
+                addStudentMessage.classList.remove('hidden');
+                addStudentMessage.classList.add('text-red-600');
+                return;
+            }
+
+            // Tambahkan siswa baru ke array
+            students.push({
+                "no_registrasi": formattedNewRegNumber,
+                "nama_peserta": newNamaPesertaInput.toUpperCase(), // Ubah ke uppercase agar konsisten
+                "nisn": newNisnInput || '-', // Gunakan '-' jika NISN kosong
+                "nama_orang_tua": newNamaOrangTuaInput.toUpperCase() // Ubah ke uppercase
+            });
+
+            addStudentMessage.textContent = `Data peserta ${newNamaPesertaInput} (No. Reg: ${formattedNewRegNumber}) berhasil ditambahkan!`;
+            addStudentMessage.classList.remove('hidden');
+            addStudentMessage.classList.add('text-green-600');
+
+            // Bersihkan input form setelah berhasil menambah data
+            document.getElementById('newRegNumber').value = '';
+            document.getElementById('newNamaPeserta').value = '';
+            document.getElementById('newNisn').value = '';
+            document.getElementById('newNamaOrangTua').value = '';
+
+            console.log("Data siswa terbaru:", students); // Untuk debugging: lihat array di konsol
+        }
+
+        /**
+         * Fungsi untuk meng-export data siswa ke format CSV.
+         */
+        function exportStudentsToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+
+            // Tambahkan header CSV
+            const headers = ["NO REGISTRASI", "NAMA PESERTA", "NISN", "NAMA ORANG TUA"];
+            csvContent += headers.join(";") + "\r\n"; // Gunakan semicolon sebagai delimiter
+
+            // Tambahkan baris data
+            students.forEach(student => {
+                const row = [
+                    `"${student.no_registrasi}"`, // Wrap in quotes to handle leading zeros if Excel tries to convert to number
+                    `"${student.nama_peserta}"`,
+                    `"${student.nisn}"`,
+                    `"${student.nama_orang_tua}"`
+                ];
+                csvContent += row.join(";") + "\r\n";
+            });
+
+            // Buat link download dan picu klik
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "data_peserta.csv");
+            document.body.appendChild(link); // Diperlukan untuk Firefox
+            link.click();
+            document.body.removeChild(link); // Bersihkan elemen link
+        }
+
+
+        /**
+         * Fungsi untuk menampilkan tab admin yang dipilih (Tambah Peserta atau Export Data).
+         * @param {string} tabName - Nama tab yang akan ditampilkan ('add' atau 'export').
+         */
+        function showAdminTab(tabName) {
+            const adminTabs = {
+                'add': document.getElementById('addDataArea'),
+                'export': document.getElementById('exportDataArea')
+            };
+            const adminTabButtons = {
+                'add': document.getElementById('addTabBtn'),
+                'export': document.getElementById('exportTabBtn')
+            };
+
+            // Sembunyikan semua tab admin dan reset gaya tombol
+            for (const key in adminTabs) {
+                adminTabs[key].classList.add('hidden');
+                adminTabButtons[key].classList.remove('bg-blue-500', 'text-white');
+                adminTabButtons[key].classList.add('bg-gray-300', 'text-gray-700');
+            }
+
+            // Tampilkan tab admin yang dipilih dan atur gaya tombolnya
+            adminTabs[tabName].classList.remove('hidden');
+            adminTabButtons[tabName].classList.add('bg-blue-500', 'text-white');
+            adminTabButtons[tabName].classList.remove('bg-gray-300', 'text-gray-700');
+
+            // Sembunyikan pesan kesalahan atau sukses saat berpindah tab
+            document.getElementById('addStudentMessage').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
